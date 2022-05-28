@@ -1,0 +1,124 @@
+---
+title: "Market News Update"
+output: 
+  flexdashboard::flex_dashboard:
+    theme:
+      version : 4
+      bootswatch: minty
+    orientation: columns
+    vertical_layout: fill
+---
+```{r}
+## 날짜 및 시간 설정
+now <- Sys.time()
+today <- format(Sys.time(), "%Y.%m.%d.")
+```
+   Issued at `r today`
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(rvest)
+library(tidyverse)
+library(stringr)
+library(knitr)
+library(kableExtra)
+library(ggthemes)
+library(quantmod)
+```
+Column {data-width=500}
+-----------------------------------------------------------------------
+### Major Indices
+
+```{r}
+
+URL_yahoo_major_indices <- "https://finance.yahoo.com/world-indices"
+res1 <- read_html(URL_yahoo_major_indices)
+
+#  보고싶은 Indices만 추출
+major_indices <- res1 %>%
+  html_table() %>% as.data.frame() %>% filter(., Symbol=="^GSPC"|Symbol=="^IXIC"|Symbol=="^RUT"| Symbol=="^VIX")
+
+#  Data Frame 정리 및 column name 일부 변경
+major_indices <- major_indices[1:4,2:5]
+colnames(major_indices)[colnames(major_indices) == "X..Change"] <- "%Change"
+colnames(major_indices)[colnames(major_indices) == "Name"] <- "Index"
+
+kbl(major_indices) %>%
+  kable_styling(bootstrap_options = c("striped", "hover","responsive"))
+
+##Market headline news
+
+URL_Marketnews <- "https://www.marketwatch.com/"
+res <- read_html(URL_Marketnews)
+
+
+pattern <- ".is-lead .bullet__item .link"
+
+news <- res %>%
+  html_nodes(pattern) %>%
+  html_text()
+news <- str_trim(news)
+news <- str_remove_all(news,"  ")
+news <- str_remove_all(news,"\n")
+
+news
+
+```
+### Most Active stocks
+```{r}
+
+# Yahoo Finance 에서 Most_Active Stock 정보추출
+
+URL_yahoo_most_active <- "https://finance.yahoo.com/most-active"
+res2 <- read_html(URL_yahoo_most_active)
+
+#  Data Frame 정리 및 column name 일부 변경
+most_active <- res2 %>%
+  html_table() %>% as.data.frame()
+a <- most_active[1:1,1:1]
+most_active <- most_active[1:10,2:6]
+colnames(most_active)[colnames(most_active) == "Name"] <- "Stock"
+colnames(most_active)[colnames(most_active) == "X..Change"] <- "%Change"
+colnames(most_active)[colnames(most_active) == "Price..Intraday."] <- "Last.Price"
+
+kbl(most_active) %>%
+  kable_styling(bootstrap_options = c("striped", "hover","responsive"))
+
+```
+Column {data-width=500}
+-----------------------------------------------------------------------
+### US Treasury
+```{r}
+
+URL_UST <- "https://www.investing.com/rates-bonds/usa-government-bonds?maturity_from=60&maturity_to=290"
+res <- read_html(URL_UST)
+
+pattern <- "#cr1"
+UST.table <- res %>%
+  html_nodes(pattern) %>%
+  html_table() %>% as.data.frame()
+
+#만기별 Name의 순서를 고정
+UST.table$Name <- factor(UST.table$Name, levels=unique(UST.table$Name))
+
+ggplot(data = UST.table, aes(Name, Yield, group=1)) + geom_point()+geom_line() +labs(title="US treasury Yield curve", x= "Maturity", y="YTM") + theme_economist() +  theme(plot.title = element_text(hjust = 0.5)) + coord_fixed(ratio = 2)
+```
+
+
+### Currencies
+```{r}
+# #  Yahoo Finance 에서 currency 정보추출
+# 
+# URL_yahoo_major_currencies <- "https://finance.yahoo.com/currencies"
+# res3 <- read_html(URL_yahoo_major_currencies)
+# 
+# #  보고싶은 Indices만 추출
+# major_currencies <- res3 %>% html_table() %>% as.data.frame %>% filter(., Symbol=="EURUSD=X"|Symbol=="JPY=X"|Symbol=="GBPUSD=X"| Symbol=="AUDUSD=X"|Symbol=="NZDUSD=X")
+
+getSymbols(a,auto.assign = FALSE) %>% chart_Series(,name=a)
+
+```
+
+
+```{r}
+
+```
